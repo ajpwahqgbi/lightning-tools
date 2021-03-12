@@ -182,7 +182,9 @@ else:
 i = 1
 num_inactive_channels = 0
 for chan in json.load(sys.stdin)["channels"]:
-    src_id = chan["source"]
+    if chan["node1_policy"] == None or chan["node2_policy"] == None:
+        continue
+    src_id = chan["node1_pub"] 
     if src_id not in id_to_node:
         node_to_id[i] = src_id
         id_to_node[src_id] = i
@@ -190,7 +192,7 @@ for chan in json.load(sys.stdin)["channels"]:
         i += 1
     src = id_to_node[src_id]
 
-    dest_id = chan["destination"]
+    dest_id = chan["node2_pub"]
     if dest_id not in id_to_node:
         node_to_id[i] = dest_id
         id_to_node[dest_id] = i
@@ -198,7 +200,8 @@ for chan in json.load(sys.stdin)["channels"]:
         i += 1
     dest = id_to_node[dest_id]
 
-    if not chan["active"]:
+    #disabled peers, ~2 weeks
+    if chan["node1_policy"]["disabled"] or chan["node2_policy"]["disabled"]:
         num_inactive_channels += 1
         continue
 
@@ -209,11 +212,27 @@ for chan in json.load(sys.stdin)["channels"]:
         incoming[dest] = set()
     incoming[dest].add(src)
 
-    base_fee = chan["base_fee_millisatoshi"]
-    permillion_fee = chan["fee_per_millionth"]
+    base_fee = int(chan["node2_policy"]["fee_base_msat"])
+    permillion_fee = int(chan["node2_policy"]["fee_rate_milli_msat"])
     chan_fees[(src, dest)] = (permillion_fee, base_fee)
-    chan_capacity[(src, dest)] = chan["satoshis"]
+    chan_capacity[(src, dest)] = int(chan["capacity"])
+    
+    #######################################
+    # LND specific: REVERSE DIRECTION node2=>node1, fees of node1_policy count
+    #######################################    
 
+    if src not in incoming:
+        incoming[src] = set()
+    incoming[src].add(dest)
+    if dest not in outgoing:
+        outgoing[dest] = set()
+    outgoing[dest].add(src)
+
+    base_fee = int(chan["node1_policy"]["fee_base_msat"]) 
+    permillion_fee = int(chan["node1_policy"]["fee_rate_milli_msat"])
+    chan_fees[(dest, src)] = (permillion_fee, base_fee)
+    chan_capacity[(dest, src)] = int(chan["capacity"]) 
+    
 num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n in incoming else 0, nodes))
 print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
 nodes.remove(root_node)
