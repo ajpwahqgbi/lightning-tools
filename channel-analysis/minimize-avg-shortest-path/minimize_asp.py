@@ -49,7 +49,7 @@ def print_top_new_peers(num):
         if not node_is_big_enough(n):
             continue
 
-        print("%f benefit from peering with node %s" % (b, node_to_id[n]))
+        print("%f ASP when peering with node %s" % (b, node_to_id[n]))
         cnt += 1
         if cnt >= num:
             break
