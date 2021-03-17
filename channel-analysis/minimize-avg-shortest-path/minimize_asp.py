@@ -136,7 +136,6 @@ def calculate_asp(edges, lowfee_nodes):
     min_distance = dict()
     lowfee_adjacent = dict()
     processed = set()
-    notfound = 0
 
     for (src, dest) in edges:
         if src not in lowfee_adjacent:
@@ -147,11 +146,6 @@ def calculate_asp(edges, lowfee_nodes):
         lowfee_adjacent[dest].add(src)
         min_distance[src] = sys.maxsize
         min_distance[dest] = sys.maxsize
-
-    for n in lowfee_nodes:
-        if n not in min_distance:
-          print("Could not find node %s in min_distance" % node_to_id[n])
-          notfound += 1
 
     #Calculate shortest path lengths:
     bfs_queue = [(root_node, 0)]
@@ -167,7 +161,7 @@ def calculate_asp(edges, lowfee_nodes):
 
     #Calculate average shortest path lengths:
     path_length_sum = reduce(lambda x,y: x+y, map(lambda n: min_distance[n], filter(lambda n: True if n in min_distance else False, lowfee_nodes)))
-    return float(path_length_sum)/(len(lowfee_nodes) - notfound)
+    return float(path_length_sum)/len(lowfee_nodes)
 
 
 #####################################################
