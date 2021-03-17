@@ -104,7 +104,8 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
     queued.add(root_node)
     bfs_queue = [(n, 1) for n in outgoing[root_node]]
     for o in outgoing[root_node]:
-        min_cost_to_node[o] = [(0, 0), (0, 0)]
+        min_cost_to_node[o] = set()
+        min_cost_to_node[o].add((0, 0))
         lowfee_edges.add((root_node, o))
         queued.add(o)
 
