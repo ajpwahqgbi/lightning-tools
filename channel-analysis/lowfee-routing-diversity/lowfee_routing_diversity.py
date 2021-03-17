@@ -90,13 +90,16 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
     lowfee_maxflows = dict()
     lowfee_reachable = set()
     lowfee_edges = set()
-    min_cost_to_node = dict() #maps to a list of 2 fee tuples (permillion, base) for minimum permillion fee and minimum base fee
+    min_cost_to_node = dict() #maps to a set of fee tuples (permillion, base) of costs to reach that node
+                              #that lie along the Pareto frontier (i.e, there is no other min_cost_to_node
+                              #that is strictly worse on both permillion and base)
     processed_nodes = set()
     queued = set()
     if max_hops == None:
         max_hops = 20
 
-    min_cost_to_node[root_node] = [(0, 0), (0, 0)] #[feerate_min_permillion, feerate_min_base]
+    min_cost_to_node[root_node] = set()
+    min_cost_to_node[root_node].add((0, 0)) #(feerate_min_permillion, feerate_min_base)
     processed_nodes.add(root_node)
     queued.add(root_node)
     bfs_queue = [(n, 1) for n in outgoing[root_node]]
@@ -107,7 +110,8 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
 
     if proposed_new_peer is not None:
         lowfee_edges.add((root_node, proposed_new_peer))
-        min_cost_to_node[proposed_new_peer] = [(0, 0), (0, 0)]
+        min_cost_to_node[proposed_new_peer] = set()
+        min_cost_to_node[proposed_new_peer].add((0, 0))
         queued.add(proposed_new_peer)
         bfs_queue.append((proposed_new_peer, 1))
     #use (0, 0) here instead of chan_fees[(root_node, n)] because we control these fees and they're independent of the peer node's low-fee reachability
@@ -137,12 +141,15 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
                     t1 = True
                     lowfee_edges.add((cur_node, o))
 
+                is_pareto_dominated = False
                 if o not in min_cost_to_node:
-                    min_cost_to_node[o] = [(new_permillion_fee, new_base_fee), (new_permillion_fee, new_base_fee)]
-                if new_permillion_fee < min_cost_to_node[o][0][0]:
-                    min_cost_to_node[o][0] = (new_permillion_fee, new_base_fee)
-                if new_base_fee < min_cost_to_node[o][1][1]:
-                    min_cost_to_node[o][1] = (new_permillion_fee, new_base_fee)
+                    min_cost_to_node[o] = set()
+                for c in min_cost_to_node[o]:
+                    if c[0] < new_permillion_fee and c[1] < new_base_fee:
+                        is_pareto_dominated = True
+                        break
+                if not is_pareto_dominated:
+                    min_cost_to_node[o].add((new_permillion_fee, new_base_fee))
 
                 t2 = o not in processed_nodes
                 t3 = cur_hops < max_hops
