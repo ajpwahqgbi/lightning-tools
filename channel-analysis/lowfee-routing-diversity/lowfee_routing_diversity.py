@@ -255,7 +255,8 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
     routability_improvements = 0
     bonus = 0
     for r in now_reachable:
-        maxflow_prod *= now_reachable[r]
+        if r in existing_reachable_nodes:
+          maxflow_prod *= now_reachable[r]
         if r not in existing_reachable_nodes:
             num_new_nodes += 1
         elif now_reachable[r] > existing_reachable_nodes[r]:
@@ -263,7 +264,7 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
             if existing_reachable_nodes[r] < 3:
                 bonus += 3 - existing_reachable_nodes[r]
     new_peer_benefit[n] = 3*num_new_nodes + routability_improvements + bonus
-    maxflow_geomean = power(maxflow_prod, mpf('1.0') / mpf(len(now_reachable)))
+    maxflow_geomean = power(maxflow_prod, mpf('1.0') / mpf(len(existing_reachable_nodes)))
     print("Peer %s has benefit %f with %d new low-fee reachable nodes and %d low-fee routability improvements, bonus %d; would make maxflow geomean %s" % (node_to_id[n], new_peer_benefit[n], num_new_nodes, routability_improvements, bonus, nstr(maxflow_geomean, 6)))
     i += 1
 
