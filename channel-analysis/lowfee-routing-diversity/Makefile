@@ -3,7 +3,7 @@ PYLIBS = $(shell python3-config --libs)
 CC = gcc
 lowfee_routing_diversity: lowfee_routing_diversity.py
 	cython -3 --embed lowfee_routing_diversity.py
-	$(CC) $(PYINCLUDES) $(PYLIBS) -O3 -march=broadwell -o lowfee_routing_diversity lowfee_routing_diversity.c
+	$(CC) $(PYINCLUDES) $(PYLIBS) -O3 -march=native -o lowfee_routing_diversity lowfee_routing_diversity.c
 
 .PHONY: clean
 clean:
