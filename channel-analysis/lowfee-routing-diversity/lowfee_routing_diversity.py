@@ -171,6 +171,7 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
         #calculate the maxflow from root_node -> cur_node with all channels having unit weight
         lowfee_maxflows[cur_node] = get_unweighted_maxflow(root_node, cur_node, lowfee_edges)
     return lowfee_maxflows
+
 def getInputType(json_data):
     global inputType
     try:
@@ -185,7 +186,7 @@ def getInputType(json_data):
         return json_data['edges']
     except KeyError:
         inputType = InputType.UKN
-        return None  
+        return None
 #####################################################
 signal.signal(signal.SIGINT, sigint_handler)
 
@@ -210,6 +211,7 @@ else:
         min_channels = int(sys.argv[4])
     if len(sys.argv) >= 6:
         min_capacity = int(sys.argv[5])
+
 json_data = json.load(sys.stdin)
 json_data_root = getInputType(json_data)
 if inputType == InputType.UKN:
@@ -217,6 +219,7 @@ if inputType == InputType.UKN:
     sys.exit(1)
 else:
     print("Found %s input JSON" % inputType.value)
+
 i = 1
 num_inactive_channels = 0
 for chan in json_data_root:
@@ -262,7 +265,7 @@ for chan in json_data_root:
     if inputType == InputType.CLI:
         continue
 
-    # LND specific: REVERSE DIRECTION node2=>node1, fees of node1_policy count  
+    # LND specific: REVERSE DIRECTION node2=>node1, fees of node1_policy count
     if src not in incoming:
         incoming[src] = set()
     incoming[src].add(dest)
@@ -270,10 +273,10 @@ for chan in json_data_root:
         outgoing[dest] = set()
     outgoing[dest].add(src)
 
-    base_fee = int(chan["node1_policy"]["fee_base_msat"]) 
+    base_fee = int(chan["node1_policy"]["fee_base_msat"])
     permillion_fee = int(chan["node1_policy"]["fee_rate_milli_msat"])
     chan_fees[(dest, src)] = (permillion_fee, base_fee)
-    chan_capacity[(dest, src)] = int(chan["capacity"]) 
+    chan_capacity[(dest, src)] = int(chan["capacity"])
 
 num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n in incoming else 0, nodes))
 print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
