@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 #Pipe input from `lightning-cli listchannels`
 #pip3 install PyMaxflow mpmath
-import sys, json
+import sys, signal, json
 from functools import reduce
 import maxflow
 from mpmath import *
+from enum import Enum
 
 root_node = 0
 root_node_id = "" 
@@ -29,6 +30,13 @@ new_peer_benefit = {}
 
 nodes.add(root_node)
 
+class InputType(Enum):
+    LND = "LND"
+    CLI = "C-Lightning"
+    UKN = 3
+def sigint_handler(signal, frame):
+    print('\nInterrupted')
+    sys.exit(0)
 def node_is_big_enough(n):
     num_channels = 0
     total_capacity = 0
@@ -163,12 +171,28 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
         #calculate the maxflow from root_node -> cur_node with all channels having unit weight
         lowfee_maxflows[cur_node] = get_unweighted_maxflow(root_node, cur_node, lowfee_edges)
     return lowfee_maxflows
-
+def getInputType(json_data):
+    global inputType
+    try:
+        buf = json_data['channels'][0]
+        inputType = InputType.CLI
+        return json_data['channels']
+    except KeyError:
+        pass
+    try:
+        buf = json_data['edges'][0]
+        inputType = InputType.LND
+        return json_data['edges']
+    except KeyError:
+        inputType = InputType.UKN
+        return None  
 #####################################################
+signal.signal(signal.SIGINT, sigint_handler)
 
 if len(sys.argv) < 4:
     sys.stderr.write("Usage:\n")
-    sys.stderr.write("lightning-cli listchannels | %s root_node base_fee permillion_fee [min_channels] [min_capacity]\n" % sys.argv[0])
+    sys.stderr.write("with C-Lightning: lightning-cli listchannels | %s root_node base_fee permillion_fee [min_channels] [min_capacity]\n" % sys.argv[0])
+    sys.stderr.write("with LND: lncli describegraph | %s root_node base_fee permillion_fee [min_channels] [min_capacity]\n" % sys.argv[0])
     sys.stderr.write("\n")
     sys.stderr.write("root_node: Your node pubkey\n")
     sys.stderr.write("base_fee: The maximum base fee (in milisatoshi) accumulated along a route to remain \"low-fee reachable\"\n")
@@ -186,11 +210,19 @@ else:
         min_channels = int(sys.argv[4])
     if len(sys.argv) >= 6:
         min_capacity = int(sys.argv[5])
-
+json_data = json.load(sys.stdin)
+json_data_root = getInputType(json_data)
+if inputType == InputType.UKN:
+    sys.stderr.write("Neither Channels (C-Lightning) nor Edges (LND) nodes found in input JSON ")
+    sys.exit(1)
+else:
+    print("Found %s input JSON" % inputType.value)
 i = 1
 num_inactive_channels = 0
-for chan in json.load(sys.stdin)["channels"]:
-    src_id = chan["source"]
+for chan in json_data_root:
+    if inputType == InputType.LND and (chan["node1_policy"] == None or chan["node2_policy"] == None):
+        continue
+    src_id = chan["source"] if inputType == InputType.CLI else chan["node1_pub"]
     if src_id not in id_to_node:
         node_to_id[i] = src_id
         id_to_node[src_id] = i
@@ -198,7 +230,7 @@ for chan in json.load(sys.stdin)["channels"]:
         i += 1
     src = id_to_node[src_id]
 
-    dest_id = chan["destination"]
+    dest_id = chan["destination"] if inputType == InputType.CLI else chan["node2_pub"]
     if dest_id not in id_to_node:
         node_to_id[i] = dest_id
         id_to_node[dest_id] = i
@@ -206,7 +238,7 @@ for chan in json.load(sys.stdin)["channels"]:
         i += 1
     dest = id_to_node[dest_id]
 
-    if not chan["active"]:
+    if (inputType == InputType.CLI and not chan["active"]) or (inputType == InputType.CLI and (chan["node1_policy"]["disabled"] or chan["node2_policy"]["disabled"])):
         num_inactive_channels += 1
         continue
 
@@ -217,10 +249,31 @@ for chan in json.load(sys.stdin)["channels"]:
         incoming[dest] = set()
     incoming[dest].add(src)
 
-    base_fee = chan["base_fee_millisatoshi"]
-    permillion_fee = chan["fee_per_millionth"]
+    if inputType == InputType.CLI:
+        base_fee = chan["base_fee_millisatoshi"]
+        permillion_fee = chan["fee_per_millionth"]
+        chan_capacity[(src, dest)] = chan["satoshis"]
+    else:
+        base_fee = int(chan["node2_policy"]["fee_base_msat"])
+        permillion_fee = int(chan["node2_policy"]["fee_rate_milli_msat"])
+        chan_capacity[(src, dest)] = int(chan["capacity"])
     chan_fees[(src, dest)] = (permillion_fee, base_fee)
-    chan_capacity[(src, dest)] = chan["satoshis"]
+
+    if inputType == InputType.CLI:
+        continue
+
+    # LND specific: REVERSE DIRECTION node2=>node1, fees of node1_policy count  
+    if src not in incoming:
+        incoming[src] = set()
+    incoming[src].add(dest)
+    if dest not in outgoing:
+        outgoing[dest] = set()
+    outgoing[dest].add(src)
+
+    base_fee = int(chan["node1_policy"]["fee_base_msat"]) 
+    permillion_fee = int(chan["node1_policy"]["fee_rate_milli_msat"])
+    chan_fees[(dest, src)] = (permillion_fee, base_fee)
+    chan_capacity[(dest, src)] = int(chan["capacity"]) 
 
 num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n in incoming else 0, nodes))
 print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
