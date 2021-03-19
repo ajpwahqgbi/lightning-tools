@@ -25,6 +25,7 @@ min_capacity = 15000000 #NOT about total capacity of a channel path
 nodes = set()
 node_to_id = dict()
 id_to_node = dict()
+node_to_alias = dict()
 chan_fees = {}
 chan_capacity = {}
 outgoing = {}
@@ -45,7 +46,7 @@ ln_software_type = LNSoftwareType.UKN
 
 def print_usage_and_die():
     sys.stderr.write("Usage:\n")
-    sys.stderr.write("with C-Lightning: lightning-cli listchannels | %s root_node base_fee [min_channels] [min_capacity]\n" % sys.argv[0])
+    sys.stderr.write("with C-Lightning: (echo \"{\"; lightning-cli listnodes | tail -n +2 | head -n -2; echo \"],\"; lightning-cli listchannels | tail -n +2) | %s root_node base_fee [min_channels] [min_capacity]\n" % sys.argv[0])
     sys.stderr.write("with LND: lncli describegraph | %s root_node base_fee [min_channels] [min_capacity]\n" % sys.argv[0])
     sys.stderr.write("\n")
     sys.stderr.write("root_node: Your node pubkey\n")
@@ -53,6 +54,10 @@ def print_usage_and_die():
     sys.stderr.write("min_channels: The minimum number of channels a node must have to consider peering with it (optional, default %d)\n" % min_channels)
     sys.stderr.write("min_capacity: The minimum total capacity a node (in satoshi) must have to consider peering with it.  Unrelated to the capacity of channels along a route. (optional, default %d)\n" % min_capacity)
     sys.exit(1)
+
+def sigint_handler(signal, frame):
+    print('\nInterrupted')
+    sys.exit(0)
 
 def detect_ln_software_type(json_data):
     try:
@@ -66,9 +71,11 @@ def detect_ln_software_type(json_data):
     except KeyError:
         return LNSoftwareType.UKN
 
-def sigint_handler(signal, frame):
-    print('\nInterrupted')
-    sys.exit(0)
+def parse_node_aliases(json_data):
+    for node in json_data['nodes']:
+        if 'alias' in node and node['nodeid'] in id_to_node:
+            n = id_to_node[node['nodeid']]
+            node_to_alias[n] = node['alias']
 
 def node_is_big_enough(n):
     num_channels = 0
@@ -250,6 +257,9 @@ for chan in json_data_root:
     chan_fees[(dest, src)] = (permillion_fee, base_fee)
     chan_capacity[(dest, src)] = int(chan["capacity"])
 
+if ln_software_type == LNSoftwareType.CLI and "nodes" in json_data:
+    parse_node_aliases(json_data)
+
 num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n in incoming else 0, nodes))
 print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
 nodes.remove(root_node)
@@ -267,5 +277,6 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
     if not node_is_big_enough(n):
         continue
     (new_ppm_avg, new_ppm_geomean, _) = get_lowfee_reachable_ppm_avg_geomean(n, existing_reachable)
-    print("Peer %s makes ppm feerate (mean, geomean) = (%f, %s)." % (node_to_id[n], new_ppm_avg, new_ppm_geomean))
+    peer_name = (node_to_alias[n] + " (%s)" % node_to_id[n][0:7]) if n in node_to_alias else node_to_id[n] 
+    print("Peer %s makes ppm feerate (mean, geomean) = (%f, %s)." % (peer_name, new_ppm_avg, new_ppm_geomean))
     i += 1
