@@ -54,7 +54,8 @@ def print_top_new_peers(num):
         if cnt >= num:
             break
 
-#returns a set of node tuples
+#Returns a set of node tuples
+#Note that not all routes through the low-fee reachable subgraph are low-fee routes!
 def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
     lowfee_edges = set()
     lowfee_nodes = set()
@@ -103,10 +104,11 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
                 new_permillion_fee += permillion_fee
                 new_base_fee += base_fee
 
-                t1 = False
                 if new_permillion_fee <= permillion_fee_threshold and new_base_fee <= base_fee_threshold:
-                    t1 = True
                     lowfee_edges.add((cur_node, o))
+                    if o not in processed_nodes and o not in queued and cur_hops < max_hops:
+                        queued.add(o)
+                        bfs_queue.append((o, cur_hops + 1))
 
                 is_pareto_dominated = False
                 if o not in min_cost_to_node:
@@ -118,12 +120,6 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
                 if not is_pareto_dominated:
                     min_cost_to_node[o].add((new_permillion_fee, new_base_fee))
 
-                t2 = o not in processed_nodes
-                t3 = cur_hops < max_hops
-                if t1 and t2 and t3:
-                    if o not in queued:
-                        queued.add(o)
-                        bfs_queue.append((o, cur_hops + 1))
 
     for (src, dest) in lowfee_edges:
       lowfee_nodes.add(src)

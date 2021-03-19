@@ -181,10 +181,11 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
                 new_permillion_fee += permillion_fee
                 new_base_fee += base_fee
 
-                t1 = False
                 if new_permillion_fee <= permillion_fee_threshold and new_base_fee <= base_fee_threshold:
-                    t1 = True
                     lowfee_edges.add((cur_node, o))
+                    if o not in processed_nodes and o not in queued and cur_hops < max_hops:
+                        queued.add(o)
+                        bfs_queue.append((o, cur_hops + 1))
 
                 is_pareto_dominated = False
                 if o not in min_cost_to_node:
@@ -196,12 +197,6 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
                 if not is_pareto_dominated:
                     min_cost_to_node[o].add((new_permillion_fee, new_base_fee))
 
-                t2 = o not in processed_nodes
-                t3 = cur_hops < max_hops
-                if t1 and t2 and t3:
-                    if o not in queued:
-                        queued.add(o)
-                        bfs_queue.append((o, cur_hops + 1))
 
     for cur_node in lowfee_reachable:
         #calculate the maxflow from root_node -> cur_node with all channels having unit weight
