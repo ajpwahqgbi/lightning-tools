@@ -186,16 +186,15 @@ def get_lowfee_reachable_node_maxflows(proposed_new_peer=None, max_hops=None):
                     if o not in processed_nodes and o not in queued and cur_hops < max_hops:
                         queued.add(o)
                         bfs_queue.append((o, cur_hops + 1))
-
-                is_pareto_dominated = False
-                if o not in min_cost_to_node:
-                    min_cost_to_node[o] = set()
-                for c in min_cost_to_node[o]:
-                    if c[0] < new_permillion_fee and c[1] < new_base_fee:
-                        is_pareto_dominated = True
-                        break
-                if not is_pareto_dominated:
-                    min_cost_to_node[o].add((new_permillion_fee, new_base_fee))
+                    is_pareto_dominated = False
+                    if o not in min_cost_to_node:
+                        min_cost_to_node[o] = set()
+                    for c in min_cost_to_node[o]:
+                        if c[0] < new_permillion_fee and c[1] < new_base_fee:
+                            is_pareto_dominated = True
+                            break
+                    if not is_pareto_dominated:
+                        min_cost_to_node[o].add((new_permillion_fee, new_base_fee))
 
 
     for cur_node in lowfee_reachable:
