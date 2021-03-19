@@ -11,16 +11,15 @@ def listaliases(plugin):
 
     Returns pretty-printed JSON output for use in other scripts.
     """
-    my_node_id = plugin.rpc.getinfo().get('id')
     nodes = plugin.rpc.listnodes()['nodes']
     alias_objs = []
     for node in nodes:
-        s = node['alias'] if len(node) != 0 and 'alias' in node else node['nodeid'][0:7]
-        obj = {
-            "id": node['nodeid'],
-            "alias": s
-        }
-        alias_objs.append(obj)
+        if len(node) != 0 and 'alias' in node:
+            obj = {
+                "id": node['nodeid'],
+                "alias": node['alias']
+            }
+            alias_objs.append(obj)
 
     wrapper_obj = {
         "nodes": alias_objs
