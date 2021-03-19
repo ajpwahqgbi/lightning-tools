@@ -259,7 +259,7 @@ for chan in json_data_root:
         i += 1
     dest = id_to_node[dest_id]
 
-    if (ln_software_type == LNSoftwareType.CLI and not chan["active"]) or (ln_software_type == LNSoftwareType.CLI and (chan["node1_policy"]["disabled"] or chan["node2_policy"]["disabled"])):
+    if (ln_software_type == LNSoftwareType.CLI and not chan["active"]) or (ln_software_type == LNSoftwareType.LND and (chan["node1_policy"]["disabled"] or chan["node2_policy"]["disabled"])):
         num_inactive_channels += 1
         continue
 
