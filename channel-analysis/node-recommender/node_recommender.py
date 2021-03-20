@@ -211,7 +211,7 @@ def get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node):
             mincost = sorted(min_costs, key = lambda x: x[0])[0]
             cheapest_route[cur_node] = mincost[0]
         except:
-            sys.stderr.write("Could not find costs for node %s\n" % (node_to_alias[cur_node], node_to_id[cur_node]))
+            sys.stderr.write("Could not find costs for node %s\n" % (node_to_id[cur_node]))
             sys.stderr.flush()
 
     #ppm_sum = reduce(lambda x,y: x+y, [ppm for n, ppm in cheapest_route.items()])
