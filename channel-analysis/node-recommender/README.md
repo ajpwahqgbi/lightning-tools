@@ -2,7 +2,7 @@ Node recommender
 ----
 This script attempts to measure, for each other LN node to which you don't already have a channel, the potential benefit to creating a channel with that node. To do this, it calculates various metrics about your node and how those metrics would change if you added a channel with each potential new channel peer. These metrics include:
 * Low-fee routing diversity (see below)
-* Low-fee routing capacity
+* ~~Low-fee routing capacity~~ TODO
 * Average shortest path
 * Average cheapest path ppm cost
 
@@ -16,24 +16,23 @@ This script attempts to measure, for each other LN node to which you don't alrea
 * How many nodes see an increased number of low-fee reachable paths ("routability improvements")
 * How many nodes with fewer than 3 existing low-fee reachable paths get more low-fee reachable paths, with an improvement to a node with only 1 existing low-fee reachable path counting for 2 points
 
-A geometric mean of the maxflows to each existing low-fee reachable node is reported. Higher is better.
+Finally, a geometric mean of the maxflows to each existing low-fee reachable node is reported. Higher is better.
 
 ###Low-fee routing capacity
-TODO - we run maxflow on a capacity-weighted low-fee reachable subgraph. Higher is better.
+TODO - we will run maxflow on a capacity-weighted low-fee reachable subgraph. Higher is better.
 
 ###Average shortest path
 This is the geometric mean of the lengths of the shortest paths from your node to each other low-fee reachable node.
 Lower is better.
 
 ###Average cheapest path ppm cost
-This is the geometric mean of the total PPM feerate accumulated along the cheapest paths from your node to each other low-fee reachable node. Lower is better.
+This is the geometric mean of the total PPM feerate accumulated along the cheapest paths from your node to each other low-fee reachable node. Lower is better. NOTE: Take this metric with a hint of salt until I figure out why it is sometimes reported as *greater*when peering with some node than the existing PPM geomean.
 
 How to use it
 ----
-TODO FIXME
 * Install dependencies: `pip3 install PyMaxflow mpmath`
 * Compile the script with Cython (optional): `make`
 * Collect the LN channel graph at multiple times throughout the week: `lightning-cli listchannels >lnchannels.20210202`. You need to do this periodically because each one is a snapshot of the network, and because of dynamic fees and the shifting network, a good channel peer at one time may not be a good channel peer at other times. You want to peer with nodes that are consistently good choices over time.
-* For each collected LN channel graph, analyze the graph for varying fee rates, e.g.: `<lnchannels.20210202 ./lowfee_routing_diversity.py <your node pubkey> 2033 250`, `<lnchannels.20210202 ./lowfee_routing_diversity.py <your node pubkey> 1050 150`, `<lnchannels.20210202 ./lowfee_routing_diversity.py <your node pubkey> 1010 75` (or with `./lowfee_routing_diversity` if you ran `make`).
-* Note which prospective peers (identified by their pubkey) are consistently in the "top 10" nodes for varying fee rate threshholds and with varying snapshots of the LN channel graph.
-* Open a channel to one or more of the most consistently high-rated proposed peers.
+* For each collected LN channel graph, analyze the graph for varying fee rates, e.g.: `(echo "{"; lightning-cli listnodes | tail -n +2 | head -n -2; echo "],"; cat lnchannels.20210202 | tail -n +2) | ./node_recommender.py <your node pubkey> 2033 250`, `(echo "{"; lightning-cli listnodes | tail -n +2 | head -n -2; echo "],"; cat lnchannels.20210202 | tail -n +2) | ./node_recommender.py <your node pubkey> 1050 150`, `(echo "{"; lightning-cli listnodes | tail -n +2 | head -n -2; echo "],"; cat lnchannels.20210202 | tail -n +2) | ./node_recommender.py <your node pubkey> 1010 75` (or with `./node_recommender` if you ran `make`).
+* Note which prospective peers are consistently well-scoring for varying fee rate threshholds and with varying snapshots of the LN channel graph.
+* Open a channel to one or more of those proposed peers.
