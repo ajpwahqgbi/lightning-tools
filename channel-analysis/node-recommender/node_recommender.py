@@ -28,6 +28,7 @@ node_to_id = dict()
 id_to_node = dict()
 node_to_alias = dict()
 chan_fees = {}
+chan_fee_anchors = {}
 chan_capacity = {}
 outgoing = {}
 incoming = {}
@@ -312,15 +313,41 @@ for chan in json_data_root:
         incoming[dest] = set()
     incoming[dest].add(src)
 
+    capacity = 0
     if ln_software_type == LNSoftwareType.CLI:
         base_fee = chan["base_fee_millisatoshi"]
         permillion_fee = chan["fee_per_millionth"]
-        chan_capacity[(src, dest)] = chan["satoshis"]
+        capacity = chan["satoshis"]
     else:
         base_fee = int(chan["node2_policy"]["fee_base_msat"])
         permillion_fee = int(chan["node2_policy"]["fee_rate_milli_msat"])
-        chan_capacity[(src, dest)] = int(chan["capacity"])
-    chan_fees[(src, dest)] = (permillion_fee, base_fee)
+        capacity = int(chan["capacity"])
+
+    if (src, dest) not in chan_fees:
+        chan_capacity[(src, dest)] = capacity
+        chan_fees[(src, dest)] = (permillion_fee, base_fee)
+        chan_fee_anchors[(src, dest)] = (permillion_fee, base_fee, capacity)
+    else:
+        (existing_permillion, existing_base) = chan_fees[(src, dest)]
+        (anchor_permillion, anchor_base, anchor_capacity) = chan_fee_anchors[(src, dest)]
+        if abs(existing_permillion - permillion_fee) <= 20 and abs(existing_base - base_fee) <= 200:
+            #the channels are roughly the same fee rate; combine capacity
+            chan_capacity[(src, dest)] += capacity
+            if permillion_fee < existing_permillion:
+                #always record the lowest PPM feerate for the parallel channels
+                chan_fees[(src, dest)] = (permillion_fee, base_fee)
+            if abs(anchor_permillion - permillion_fee) > 20 or abs(anchor_base - base_fee) > 200:
+                #we've drifted too far from the anchor fees
+                #reset the anchor and remove capacity from parallel channels with too-high fees
+                chan_capacity -= anchor_capacity
+                (t1, t2) = chan_fees[(src, dest)]
+                chan_fee_anchors[(src, dest)] = (t1, t2, capacity if permillion_fee < existing_permillion else chan_capacity - capacity)
+        elif permillion_fee <= existing_permillion and existing_base - base_fee > -200:
+            #this is a new, lower-rate channel, allowing for some base fee leeway
+            #discard old capacity; only consider capacity in lowest-rate channels between nodes
+            chan_fees[(src, dest)] = (permillion_fee, base_fee)
+            chan_fee_anchors[(src, dest)] = (permillion_fee, base_fee, capacity)
+            chan_capacity[(src, dest)] = capacity
 
     if ln_software_type == LNSoftwareType.CLI:
         continue
