@@ -366,8 +366,33 @@ for chan in json_data_root:
 
     base_fee = int(chan["node1_policy"]["fee_base_msat"])
     permillion_fee = int(chan["node1_policy"]["fee_rate_milli_msat"])
-    chan_fees[(dest, src)] = (permillion_fee, base_fee)
-    chan_capacity[(dest, src)] = int(chan["capacity"])
+    capacity = int(chan["capacity"])
+
+    if (dest, src) not in chan_fees:
+        chan_capacity[(dest, src)] = capacity
+        chan_fees[(dest, src)] = (permillion_fee, base_fee)
+        chan_fee_anchors[(dest, src)] = (permillion_fee, base_fee, capacity)
+    else:
+        (existing_permillion, existing_base) = chan_fees[(dest, src)]
+        (anchor_permillion, anchor_base, anchor_capacity) = chan_fee_anchors[(dest, src)]
+        if abs(existing_permillion - permillion_fee) <= 20 and abs(existing_base - base_fee) <= 200:
+            #the channels are roughly the same fee rate; combine capacity
+            chan_capacity[(dest, src)] += capacity
+            if permillion_fee < existing_permillion:
+                #always record the lowest PPM feerate for the parallel channels
+                chan_fees[(dest, src)] = (permillion_fee, base_fee)
+            if abs(anchor_permillion - permillion_fee) > 20 or abs(anchor_base - base_fee) > 200:
+                #we've drifted too far from the anchor fees
+                #reset the anchor and remove capacity from parallel channels with too-high fees
+                chan_capacity -= anchor_capacity
+                (t1, t2) = chan_fees[(dest, src)]
+                chan_fee_anchors[(dest, src)] = (t1, t2, capacity if permillion_fee < existing_permillion else chan_capacity - capacity)
+        elif permillion_fee <= existing_permillion and existing_base - base_fee > -200:
+            #this is a new, lower-rate channel, allowing for some base fee leeway
+            #discard old capacity; only consider capacity in lowest-rate channels between nodes
+            chan_fees[(dest, src)] = (permillion_fee, base_fee)
+            chan_fee_anchors[(dest, src)] = (permillion_fee, base_fee, capacity)
+            chan_capacity[(dest, src)] = capacity
 
 if ln_software_type == LNSoftwareType.CLI and "nodes" in json_data:
     parse_node_aliases(json_data)
