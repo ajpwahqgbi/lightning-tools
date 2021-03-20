@@ -15,8 +15,7 @@ from enum import Enum
 root_node = 0
 root_node_id = "" 
 
-#Define the "low fee" threshold
-#These values are for the *total path* 
+#Define the "low fee" threshold for the *total path*
 base_fee_threshold = 0
 permillion_fee_threshold = 0
 
@@ -207,7 +206,7 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
       lowfee_nodes.add(src)
       lowfee_nodes.add(dest)
 
-    return (lowfee_edges, lowfee_nodes)
+    return (lowfee_edges, lowfee_nodes, min_cost_to_node)
 
 def get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes):
     lowfee_maxflows = dict()
@@ -215,6 +214,21 @@ def get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes):
         #calculate the maxflow from root_node -> cur_node with all channels having unit weight
         lowfee_maxflows[cur_node] = get_unweighted_maxflow(root_node, cur_node, lowfee_edges)
     return lowfee_maxflows
+
+def get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node):
+    cheapest_route = dict()
+
+    for cur_node in lowfee_nodes:
+        min_costs = min_cost_to_node[cur_node]
+        mincost = sorted(min_costs, key = lambda x: x[0])[0]
+        cheapest_route[cur_node] = mincost[0]
+
+    #ppm_sum = reduce(lambda x,y: x+y, [ppm for n, ppm in cheapest_route.items()])
+    ppm_prod = reduce(lambda x,y: x*y, [ppm if ppm != 0 else 1 for n, ppm in cheapest_route.items()])
+    #ppm_mean = float(ppm_sum) / float(len(cheapest_route))
+    ppm_geomean = power(ppm_prod, mpf(1.0) / mpf(len(cheapest_route)))
+
+    return ppm_geomean
 
 #Calculate the average shortest path length from root_node to each node in lowfee_nodes
 def calculate_asp(edges, lowfee_nodes):
@@ -347,16 +361,18 @@ num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n
 print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
 nodes.remove(root_node)
 
-(lowfee_edges, lowfee_nodes) = get_lowfee_reachable_subgraph()
-asp = calculate_asp(lowfee_edges, lowfee_nodes)
-print("Geomean shortest path from your node to all other low-fee reachable nodes = %s" % nstr(asp, 6))
-
+(lowfee_edges, lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph()
 existing_reachable_nodes = get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes)
 maxflow_sum = reduce(lambda x,y: x+y, [n[1] for n in existing_reachable_nodes.items()])
 maxflow_prod = reduce(lambda x,y: x*y, [mpf(n[1]) for n in existing_reachable_nodes.items()])
 maxflow_mean = float(maxflow_sum) / float(len(existing_reachable_nodes))
 maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
 print("%d \"low-fee reachable\" nodes already exist with mean and geomean route diversity %f and %s." % (len(existing_reachable_nodes), maxflow_mean, nstr(maxflow_geomean, 6)))
+
+asp = calculate_asp(lowfee_edges, lowfee_nodes)
+print("Geomean of the shortest path from your node to each other low-fee reachable node = %s" % nstr(asp, 6))
+ppm_geomean = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
+print("Geomean of the cheapest total PPM fees from your node to each other low-fee reachable node = %s" % nstr(ppm_geomean, 6))
 
 #Iterate over all other nodes, sorted by decreasing number of incoming channels under the theory that more connected nodes
 #are more likely to have higher peer benefit, thus giving good answers more quickly
@@ -374,8 +390,9 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
             print("Tried %d peers:\n----------" % i)
             print_top_new_peers(10)
             print("----------")
-    (new_lowfee_edges, new_lowfee_nodes) = get_lowfee_reachable_subgraph(n)
+    (new_lowfee_edges, new_lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph(n)
     asp = calculate_asp(new_lowfee_edges, lowfee_nodes)
+    ppm_geomean = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
     now_reachable = get_lowfee_reachable_unweighted_maxflows(new_lowfee_edges, new_lowfee_nodes)
     maxflow_prod = mpf('1.0')
     num_new_nodes = 0
@@ -393,7 +410,7 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
     new_peer_benefit[n] = 3*num_new_nodes + routability_improvements + bonus
     maxflow_geomean = power(maxflow_prod, mpf('1.0') / mpf(len(existing_reachable_nodes)))
     peer_name = (node_to_alias[n] + " (%s)" % node_to_id[n][0:7]) if n in node_to_alias else node_to_id[n] 
-    print("Peer %s has benefit %f with %d new low-fee reachable nodes and %d low-fee routability improvements, bonus %d; would make maxflow geomean %s and shortest path length geomean %s" % (peer_name, new_peer_benefit[n], num_new_nodes, routability_improvements, bonus, nstr(maxflow_geomean, 6), nstr(asp, 6)))
+    print("Peer %s has benefit %f with %d new low-fee reachable nodes and %d low-fee routability improvements, bonus %d; would make maxflow geomean %s, shortest path length geomean %s, and ppm geomean %s" % (peer_name, new_peer_benefit[n], num_new_nodes, routability_improvements, bonus, nstr(maxflow_geomean, 6), nstr(asp, 6), nstr(ppm_geomean, 6)))
     i += 1
 
 print_top_new_peers(10)
