@@ -94,20 +94,6 @@ def node_is_big_enough(n):
     else:
         return True
 
-def print_top_new_peers(num):
-    cnt = 0
-    for (n, b) in sorted(new_peer_benefit.items(), key = lambda x: x[1], reverse = True):
-        if n in incoming[root_node] or n in outgoing[root_node]:
-            continue
-        if not node_is_big_enough(n):
-            continue
-
-        peer_name = (node_to_alias[n] + " (%s)" % node_to_id[n][0:7]) if n in node_to_alias else node_to_id[n] 
-        print("%f benefit from peering with node %s" % (b, peer_name))
-        cnt += 1
-        if cnt >= num:
-            break
-
 def get_unweighted_maxflow(source, sink, edges):
     node_map = dict()
     source_cap = 0
@@ -292,8 +278,6 @@ ln_software_type = detect_ln_software_type(json_data)
 if ln_software_type == LNSoftwareType.UKN:
     sys.stderr.write("Valid JSON detected on stdin but it doesn't look like output from C-Lightning or LND. Please see usage below.\n\n")
     print_usage_and_die()
-else:
-    print("Found %s input JSON" % ln_software_type.value)
 json_data_root = json_data["channels"] if ln_software_type == LNSoftwareType.CLI else json_data["edges"]
 
 i = 1
@@ -358,7 +342,6 @@ if ln_software_type == LNSoftwareType.CLI and "nodes" in json_data:
     parse_node_aliases(json_data)
 
 num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n in incoming else 0, nodes))
-print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
 nodes.remove(root_node)
 
 (lowfee_edges, lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph()
@@ -367,15 +350,35 @@ maxflow_sum = reduce(lambda x,y: x+y, [n[1] for n in existing_reachable_nodes.it
 maxflow_prod = reduce(lambda x,y: x*y, [mpf(n[1]) for n in existing_reachable_nodes.items()])
 maxflow_mean = float(maxflow_sum) / float(len(existing_reachable_nodes))
 maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
-print("%d \"low-fee reachable\" nodes already exist with mean and geomean route diversity %f and %s." % (len(existing_reachable_nodes), maxflow_mean, nstr(maxflow_geomean, 6)))
 
 asp = calculate_asp(lowfee_edges, lowfee_nodes)
-print("Geomean of the shortest path from your node to each other low-fee reachable node = %s" % nstr(asp, 6))
 ppm_geomean = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
-print("Geomean of the cheapest total PPM fees from your node to each other low-fee reachable node = %s" % nstr(ppm_geomean, 6))
+#print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
+#print("%d \"low-fee reachable\" nodes already exist with mean and geomean route diversity %f and %s." % (len(existing_reachable_nodes), maxflow_mean, nstr(maxflow_geomean, 6)))
+#print("Geomean of the shortest path from your node to each other low-fee reachable node = %s" % nstr(asp, 6))
+#print("Geomean of the cheapest total PPM fees from your node to each other low-fee reachable node = %s" % nstr(ppm_geomean, 6))
+sys.stdout.write("{\n    \"root_node_metrics\": ")
+obj = {
+    "root_node_id": root_node_id,
+    "existing_reachable": len(existing_reachable_nodes),
+    "existing_maxflow_geomean": nstr(maxflow_geomean, 6),
+    "existing_shortest_path_geomean": nstr(asp, 6),
+    "existing_cheapest_ppm_geomean": nstr(ppm_geomean, 6)
+}
+obj_str = json.dumps(obj, indent = 4)
+obj_str_arr = obj_str.splitlines()
+for i in xrange(len(obj_str_arr)):
+    if i != 0:
+        sys.stdout.write("    ")
+    sys.stdout.write("%s" % obj_str_arr[i])
+    if i == (len(obj_str_arr) - 1):
+        sys.stdout.write(",")
+    sys.stdout.write("\n")
+sys.stdout.flush()
 
 #Iterate over all other nodes, sorted by decreasing number of incoming channels under the theory that more connected nodes
 #are more likely to have higher peer benefit, thus giving good answers more quickly
+sys.stdout.write("    \"peer_metrics\": [\n")
 i = 0
 nodes_num_outgoing = {n: len(outgoing[n]) if n in outgoing else 0 for n in nodes}
 for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1], reverse = True)]:
@@ -383,13 +386,8 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
         continue
     if not node_is_big_enough(n):
         continue
-    if i % 100 == 0:
-        if i == 0:
-            print("Trying new peers.")
-        else:
-            print("Tried %d peers:\n----------" % i)
-            print_top_new_peers(10)
-            print("----------")
+    if i != 0:
+        sys.stdout.write(",\n")
     (new_lowfee_edges, new_lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph(n)
     asp = calculate_asp(new_lowfee_edges, lowfee_nodes)
     ppm_geomean = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
@@ -407,10 +405,29 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
             routability_improvements += 1
             if existing_reachable_nodes[r] < 3:
                 bonus += 3 - existing_reachable_nodes[r]
-    new_peer_benefit[n] = 3*num_new_nodes + routability_improvements + bonus
     maxflow_geomean = power(maxflow_prod, mpf('1.0') / mpf(len(existing_reachable_nodes)))
-    peer_name = (node_to_alias[n] + " (%s)" % node_to_id[n][0:7]) if n in node_to_alias else node_to_id[n] 
-    print("Peer %s has benefit %f with %d new low-fee reachable nodes and %d low-fee routability improvements, bonus %d; would make maxflow geomean %s, shortest path length geomean %s, and ppm geomean %s" % (peer_name, new_peer_benefit[n], num_new_nodes, routability_improvements, bonus, nstr(maxflow_geomean, 6), nstr(asp, 6), nstr(ppm_geomean, 6)))
+    new_peer_benefit[n] = 3*num_new_nodes + routability_improvements + bonus
+    alias = node_to_alias[n] if n in node_to_alias else ""
+    obj = {
+      "peer_alias": alias,
+      "peer_score": new_peer_benefit[n],
+      "peer_id": node_to_id[n],
+      "root_node_id": root_node_id,
+      "newly_reachable": num_new_nodes,
+      "routability_improvements": routability_improvements,
+      "bonus": bonus,
+      "new_maxflow_geomean": nstr(maxflow_geomean, 6),
+      "new_shortest_path_geomean": nstr(asp, 6),
+      "new_cheapest_ppm_geomean": nstr(ppm_geomean, 6)
+    }
+    obj_str = json.dumps(obj, indent = 4)
+    obj_str_arr = obj_str.splitlines()
+    for j in xrange(len(obj_str_arr)):
+        sys.stdout.write("        %s" % obj_str_arr[j])
+        if j != (len(obj_str_arr) - 1):
+            sys.stdout.write("\n")
+    sys.stdout.flush()
     i += 1
 
-print_top_new_peers(10)
+sys.stdout.write("\n    ]\n}\n")
+sys.stdout.flush()
