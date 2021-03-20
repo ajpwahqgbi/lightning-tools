@@ -183,7 +183,7 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
                     if o not in min_cost_to_node:
                         min_cost_to_node[o] = set()
                     for c in min_cost_to_node[o]:
-                        if c[0] < new_permillion_fee and c[1] < new_base_fee:
+                        if c[0] <= new_permillion_fee and c[1] <= new_base_fee:
                             is_pareto_dominated = True
                             break
                     if not is_pareto_dominated:
