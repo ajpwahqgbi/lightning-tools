@@ -95,6 +95,12 @@ def node_is_big_enough(n):
     else:
         return True
 
+def is_pareto_dominated(x, y, tuple_set):
+    for (t_x, t_y) in tuple_set:
+        if (t_x != x or t_y != y) and t_x <= x and t_y <= y:
+            return True
+    return False
+
 def get_unweighted_maxflow(source, sink, edges):
     node_map = dict()
     source_cap = 0
@@ -159,8 +165,13 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
     while len(bfs_queue) > 0:
         (cur_node, cur_hops) = bfs_queue.pop(0)
         processed_nodes.add(cur_node)
-        min_feerates = min_cost_to_node[cur_node]
-        for min_feerate in min_feerates:
+        pareto_optimal_feerates = set()
+        for (ppm, base) in min_cost_to_node[cur_node]:
+            if not is_pareto_dominated(ppm, base, min_cost_to_node[cur_node]):
+                #we checked for Pareto optimality below, but as min_cost_to_node was under
+                #construction it may have old entries that are no longer on the Pareto frontier
+                pareto_optimal_feerates.add((ppm, base))
+        for min_feerate in pareto_optimal_feerates:
             (permillion_fee, base_fee) = min_feerate
 
             if permillion_fee > permillion_fee_threshold or base_fee > base_fee_threshold:
@@ -179,14 +190,9 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
                     if o not in processed_nodes and o not in queued and cur_hops < max_hops:
                         queued.add(o)
                         bfs_queue.append((o, cur_hops + 1))
-                    is_pareto_dominated = False
                     if o not in min_cost_to_node:
                         min_cost_to_node[o] = set()
-                    for c in min_cost_to_node[o]:
-                        if c[0] <= new_permillion_fee and c[1] <= new_base_fee:
-                            is_pareto_dominated = True
-                            break
-                    if not is_pareto_dominated:
+                    if not is_pareto_dominated(new_permillion_fee, new_base_fee, min_cost_to_node[o]):
                         min_cost_to_node[o].add((new_permillion_fee, new_base_fee))
 
     for (src, dest) in lowfee_edges:
