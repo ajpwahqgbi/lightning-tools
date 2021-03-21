@@ -210,6 +210,7 @@ def get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes):
 
 def get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node):
     cheapest_route = dict()
+    warnings = list()
 
     for cur_node in lowfee_nodes:
         try:
@@ -217,15 +218,15 @@ def get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node):
             mincost = sorted(min_costs, key = lambda x: x[0])[0]
             cheapest_route[cur_node] = mincost[0]
         except:
-            sys.stderr.write("Could not find costs for node %s\n" % (node_to_id[cur_node]))
-            sys.stderr.flush()
+            msg = "Could not find costs for node %s" % (node_to_id[cur_node])
+            warnings.append(msg)
 
     #ppm_sum = reduce(lambda x,y: x+y, [ppm for n, ppm in cheapest_route.items()])
     ppm_prod = reduce(lambda x,y: x*y, [ppm if ppm != 0 else 1 for n, ppm in cheapest_route.items()])
     #ppm_mean = float(ppm_sum) / float(len(cheapest_route))
     ppm_geomean = power(ppm_prod, mpf(1.0) / mpf(len(cheapest_route)))
 
-    return ppm_geomean
+    return (ppm_geomean, warnings)
 
 #Calculate the average shortest path length from root_node to each node in lowfee_nodes
 def calculate_asp(edges, lowfee_nodes):
@@ -414,7 +415,7 @@ maxflow_mean = float(maxflow_sum) / float(len(existing_reachable_nodes))
 maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
 
 asp = calculate_asp(lowfee_edges, lowfee_nodes)
-ppm_geomean = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
+(ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
 #print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
 #print("%d \"low-fee reachable\" nodes already exist with mean and geomean route diversity %f and %s." % (len(existing_reachable_nodes), maxflow_mean, nstr(maxflow_geomean, 6)))
 #print("Geomean of the shortest path from your node to each other low-fee reachable node = %s" % nstr(asp, 6))
@@ -427,6 +428,8 @@ obj = {
     "existing_shortest_path_geomean": nstr(asp, 6),
     "existing_cheapest_ppm_geomean": nstr(ppm_geomean, 6)
 }
+if len(warnings) > 0:
+    obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
 obj_str = json.dumps(obj, indent = 4)
 obj_str_arr = obj_str.splitlines()
 for i in xrange(len(obj_str_arr)):
@@ -452,7 +455,7 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
         sys.stdout.write(",\n")
     (new_lowfee_edges, new_lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph(n)
     asp = calculate_asp(new_lowfee_edges, lowfee_nodes)
-    ppm_geomean = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
+    (ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
     now_reachable = get_lowfee_reachable_unweighted_maxflows(new_lowfee_edges, new_lowfee_nodes)
     maxflow_prod = mpf('1.0')
     num_new_nodes = 0
@@ -482,6 +485,8 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
       "new_shortest_path_geomean": nstr(asp, 6),
       "new_cheapest_ppm_geomean": nstr(ppm_geomean, 6)
     }
+    if len(warnings) > 0:
+        obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
     obj_str = json.dumps(obj, indent = 4)
     obj_str_arr = obj_str.splitlines()
     for j in xrange(len(obj_str_arr)):
