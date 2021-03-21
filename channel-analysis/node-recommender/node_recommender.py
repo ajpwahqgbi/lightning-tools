@@ -402,22 +402,16 @@ for chan in json_data_root:
 if ln_software_type == LNSoftwareType.CLI and "nodes" in json_data:
     parse_node_aliases(json_data)
 
-num_active_nodes = reduce(lambda x,y: x+y, map(lambda n: 1 if n in outgoing or n in incoming else 0, nodes))
 nodes.remove(root_node)
-
 (lowfee_edges, lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph()
 existing_reachable_nodes = get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes)
 maxflow_sum = reduce(lambda x,y: x+y, [n[1] for n in existing_reachable_nodes.items()])
 maxflow_prod = reduce(lambda x,y: x*y, [mpf(n[1]) for n in existing_reachable_nodes.items()])
 maxflow_mean = float(maxflow_sum) / float(len(existing_reachable_nodes))
 maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
-
 asp = calculate_asp(lowfee_edges, lowfee_nodes)
 (ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
-#print("%d/%d active/total nodes and %d/%d active/total (unidirectional) channels found." % (num_active_nodes, len(nodes), len(chan_fees) - num_inactive_channels, len(chan_fees)))
-#print("%d \"low-fee reachable\" nodes already exist with mean and geomean route diversity %f and %s." % (len(existing_reachable_nodes), maxflow_mean, nstr(maxflow_geomean, 6)))
-#print("Geomean of the shortest path from your node to each other low-fee reachable node = %s" % nstr(asp, 6))
-#print("Geomean of the cheapest total PPM fees from your node to each other low-fee reachable node = %s" % nstr(ppm_geomean, 6))
+
 sys.stdout.write("{\n    \"root_node_metrics\": ")
 obj = {
     "root_node_id": root_node_id,
