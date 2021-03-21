@@ -19,7 +19,8 @@ root_node_id = ""
 base_fee_threshold = 0
 permillion_fee_threshold = 0
 
-#Define the minimum channels and capacity requirements to consider a node for an outgoing channel
+#Define the requirements for number of bidirectional channels and capacity
+#to consider a node for an outgoing channel
 min_channels = 10
 min_capacity = 15000000 #NOT about total capacity of a channel path
 
@@ -54,8 +55,8 @@ def print_usage_and_die():
     sys.stderr.write("root_node: Your node pubkey\n")
     sys.stderr.write("base_fee: The maximum base fee (in milisatoshi) accumulated along a route to remain \"low-fee reachable\"\n")
     sys.stderr.write("permillion_fee: The maximum permillion fee accumulated along a route to remain \"low-fee reachable\"\n")
-    sys.stderr.write("min_channels: The minimum number of channels a node must have to consider peering with it (optional, default %d)\n" % min_channels)
-    sys.stderr.write("min_capacity: The minimum total capacity a node (in satoshi) must have to consider peering with it.  Unrelated to the capacity of channels along a route. (optional, default %d)\n" % min_capacity)
+    sys.stderr.write("min_channels: The minimum number of channels a node must have to consider peering with it. (optional, default %d)\n" % min_channels)
+    sys.stderr.write("min_capacity: The minimum total capacity a node (in satoshi) must have to consider peering with it. Unrelated to the capacity of channels along a route. (optional, default %d)\n" % min_capacity)
     sys.exit(1)
 
 def sigint_handler(signal, frame):
@@ -86,9 +87,6 @@ def node_is_big_enough(n):
     if n in outgoing:
         num_channels += len(outgoing[n])
         total_capacity += reduce(lambda x,y: x+y, [chan_capacity[(n, o)] for o in outgoing[n]])
-    if n in incoming:
-        num_channels += len(incoming[n])
-        total_capacity += reduce(lambda x,y: x+y, [chan_capacity[(i, n)] for i in incoming[n]])
 
     if num_channels < min_channels or total_capacity < min_capacity:
         return False
