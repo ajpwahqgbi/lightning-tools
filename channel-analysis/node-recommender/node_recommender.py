@@ -405,9 +405,7 @@ if ln_software_type == LNSoftwareType.CLI and "nodes" in json_data:
 nodes.remove(root_node)
 (lowfee_edges, lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph()
 existing_reachable_nodes = get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes)
-maxflow_sum = reduce(lambda x,y: x+y, [n[1] for n in existing_reachable_nodes.items()])
 maxflow_prod = reduce(lambda x,y: x*y, [mpf(n[1]) for n in existing_reachable_nodes.items()])
-maxflow_mean = float(maxflow_sum) / float(len(existing_reachable_nodes))
 maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
 asp = calculate_asp(lowfee_edges, lowfee_nodes)
 (ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
@@ -487,6 +485,37 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
             sys.stdout.write("\n")
     sys.stdout.flush()
     i += 1
+sys.stdout.write("\n    ],\n")
 
-sys.stdout.write("\n    ]\n}\n")
+#Iterate over all channel peers and calculate statistics again, pretending we didn't have this channel
+sys.stdout.write("    \"removed_peer_metrics\": [\n")
+our_peers = outgoing[root_node]
+i = 0
+for peer in our_peers:
+    if i != 0:
+        sys.stdout.write(",\n")
+    outgoing[root_node].remove(peer)
+    (lowfee_edges, lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph()
+    existing_reachable_nodes = get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes)
+    asp = calculate_asp(lowfee_edges, lowfee_nodes)
+    (ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
+    maxflow_prod = reduce(lambda x,y: x*y, [mpf(n[1]) for n in existing_reachable_nodes.items()])
+    maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
+    alias = node_to_alias[peer] if peer in node_to_alias else ""
+    obj = {
+        "removed_peer_alias": alias,
+        "removed_peer_id": node_to_id[n],
+        "root_node_id": root_node_id,
+        "removed_reachable": len(existing_reachable_nodes),
+        "removed_maxflow_geomean": nstr(maxflow_geomean, 6),
+        "removed_shortest_path_geomean": nstr(asp, 6),
+        "removed_cheapest_ppm_geomean": nstr(ppm_geomean, 6)
+    }
+    if len(warnings) > 0:
+        obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
+    outgoing[root_node].add(peer)
+    i += 1
+sys.stdout.write("\n    ],\n")
+
+sys.stdout.write("}\n")
 sys.stdout.flush()
