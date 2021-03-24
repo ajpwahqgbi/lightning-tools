@@ -499,6 +499,8 @@ for peer in our_peers:
     existing_reachable_nodes = get_lowfee_reachable_unweighted_maxflows(lowfee_edges, lowfee_nodes)
     asp = calculate_asp(lowfee_edges, lowfee_nodes)
     (ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
+    outgoing[root_node].add(peer)
+
     maxflow_prod = reduce(lambda x,y: x*y, [mpf(n[1]) for n in existing_reachable_nodes.items()])
     maxflow_geomean = power(maxflow_prod, mpf(1.0) / mpf(len(existing_reachable_nodes)))
     alias = node_to_alias[peer] if peer in node_to_alias else ""
@@ -513,7 +515,13 @@ for peer in our_peers:
     }
     if len(warnings) > 0:
         obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
-    outgoing[root_node].add(peer)
+    obj_str = json.dumps(obj, indent = 4)
+    obj_str_arr = obj_str.splitlines()
+    for j in xrange(len(obj_str_arr)):
+        sys.stdout.write("        %s" % obj_str_arr[j])
+        if j != (len(obj_str_arr) - 1):
+            sys.stdout.write("\n")
+    sys.stdout.flush()
     i += 1
 sys.stdout.write("\n    ],\n")
 
