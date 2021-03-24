@@ -6,9 +6,9 @@ This script attempts to measure, for each other LN node to which you don't alrea
 * Average cheapest path ppm cost
 
 ### Low-fee routing diversity
-"Low-fee routing diversity" here is measured like so:
+"Low-fee routing diversity" is the geometric mean of all edge-disjoint maxflows between the root node and each other low-fee reachable LN node, calculated on the unit-capacity low-fee reachable subgraph. In other words:
 1. A reduced LN channel graph is produced, including only nodes which are "low-fee reachable" (i.e. there exists a path in the channel graph from your node to that node with total fees less than a specified maximum) and only edges satisying the restricted fee constraint.
-2. An isomorphic graph is constructed with unit edge weights and the [maxflow](https://en.wikipedia.org/wiki/Maximum_flow_problem) from your node to each other node on the Lightning Network is computed. This maxflow is a rough metric for the diversity of paths (satisfying the restricted fee constraint) that exist between your node and the other node. Note that the maxflow here does *not* depend on the size of the channels along the paths or on the actual likelihood of those channels having capacity to route a payment.
+2. An isomorphic graph is constructed with unit edge capacities and the [maxflow](https://en.wikipedia.org/wiki/Maximum_flow_problem) from your node to each other node on the Lightning Network is computed. This maxflow is a rough metric for the diversity of reasonable paths that exist between your node and the other node. Note that the maxflow here does *not* depend on the size of the channels along the paths or on the actual likelihood of those channels having capacity to route a payment. Note also that not all routes in the low-fee reachable subgraph satisfy the low-fee constraint.
 3. Statistics are reported for each potential channel peer about how these maxflows would change: 
 
 * How many new nodes become low-fee reachable if we peer with them
@@ -18,7 +18,7 @@ This script attempts to measure, for each other LN node to which you don't alrea
 Finally, a geometric mean of the maxflows to each existing low-fee reachable node is reported. Higher is better.
 
 ### Low-fee routing capacity
-TODO - we will run maxflow on a capacity-weighted low-fee reachable subgraph. Higher is better.
+TODO - we will run maxflow on the low-fee reachable subgraph with integer capacities. Higher is better.
 
 ### Average shortest path
 This is the geometric mean of the lengths of the shortest paths from your node to each other low-fee reachable node.
