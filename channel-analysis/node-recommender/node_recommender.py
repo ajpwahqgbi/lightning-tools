@@ -523,7 +523,7 @@ for peer in our_peers:
             sys.stdout.write("\n")
     sys.stdout.flush()
     i += 1
-sys.stdout.write("\n    ],\n")
+sys.stdout.write("\n    ]\n")
 
 sys.stdout.write("}\n")
 sys.stdout.flush()
