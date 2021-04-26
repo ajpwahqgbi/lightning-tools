@@ -22,11 +22,13 @@ if epoch_end <= epoch_begin:
 
 fees_earned = 0
 num_forwards = 0
+total_amt = 0
 for forward in json.load(sys.stdin)["forwards"]:
     fwd_time = int(forward["received_time"])
     if forward["status"] == "settled":
         if fwd_time >= epoch_begin and fwd_time <= epoch_end:
             fees_earned = fees_earned + forward["fee"]
             num_forwards = num_forwards + 1
+            total_amt += int(forward["out_msatoshi"])
 
-print("Collected %.3f satoshis in fee payments from %d forwards between %s and %s." % (float(fees_earned) / 1000.0, num_forwards, date.fromtimestamp(epoch_begin), date.fromtimestamp(epoch_end)))
+print("Collected %.3f satoshis in fee payments from %d forwards totaling %.8fBTC between %s and %s." % (float(fees_earned) / 1000.0, num_forwards, total_amt / 100000000000.0, date.fromtimestamp(epoch_begin), date.fromtimestamp(epoch_end)))
