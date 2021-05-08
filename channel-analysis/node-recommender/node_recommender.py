@@ -422,7 +422,7 @@ if len(warnings) > 0:
     obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
 obj_str = json.dumps(obj, indent = 4)
 obj_str_arr = obj_str.splitlines()
-for i in xrange(len(obj_str_arr)):
+for i in range(len(obj_str_arr)):
     if i != 0:
         sys.stdout.write("    ")
     sys.stdout.write("%s" % obj_str_arr[i])
@@ -479,7 +479,7 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
         obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
     obj_str = json.dumps(obj, indent = 4)
     obj_str_arr = obj_str.splitlines()
-    for j in xrange(len(obj_str_arr)):
+    for j in range(len(obj_str_arr)):
         sys.stdout.write("        %s" % obj_str_arr[j])
         if j != (len(obj_str_arr) - 1):
             sys.stdout.write("\n")
@@ -517,7 +517,7 @@ for peer in our_peers:
         obj["warnings"] = reduce(lambda x,y: x + "; " + y, warnings)
     obj_str = json.dumps(obj, indent = 4)
     obj_str_arr = obj_str.splitlines()
-    for j in xrange(len(obj_str_arr)):
+    for j in range(len(obj_str_arr)):
         sys.stdout.write("        %s" % obj_str_arr[j])
         if j != (len(obj_str_arr) - 1):
             sys.stdout.write("\n")
