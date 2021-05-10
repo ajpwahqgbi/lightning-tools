@@ -14,6 +14,6 @@ def htlc_accepted(plugin: Plugin, onion: dict, htlc: dict, **kwargs):
 
 @plugin.init()
 def init(options: dict, configuration: dict, plugin: Plugin, **kwargs):
-    plugin.log(f"Plugin jitterbug initialized")
+    plugin.log(f"Plugin jitterbug initialized with max_delay {plugin.max_delay}")
 
 plugin.run()
