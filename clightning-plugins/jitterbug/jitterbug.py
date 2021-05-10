@@ -8,7 +8,7 @@ plugin.max_delay = secrets.randbelow(5) + secrets.randbelow(50) + secrets.randbe
 
 @plugin.hook("htlc_accepted")
 def htlc_accepted(plugin: Plugin, onion: dict, htlc: dict, **kwargs):
-    sleepytime = secrets.randbelow(plugins.max_delay)
+    sleepytime = secrets.randbelow(plugin.max_delay)
     time.sleep(sleepytime / 1000.0)
     return {"result": "continue"}
 
