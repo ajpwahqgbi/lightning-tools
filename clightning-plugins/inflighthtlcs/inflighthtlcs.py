@@ -19,12 +19,7 @@ def inflight_htlcs(plugin: Plugin, **kwargs):
             total_num_htlcs += num_htlcs
             if num_htlcs > 0:
                 htlc_count[scid] = num_htlcs
-    msg = f"Total {total_num_htlcs} in-flight HTLCs"
-    if total_num_htlcs > 0:
-        msg += " -- "
-        msg += reduce(lambda x,y: x+"; "+y, [f"channel {scid} has {c}" for (scid, c) in htlc_count], "")
-    msg += "."
-    return {"message": msg}
+    return {"num_inflight": total_num_htlcs, "channel_inflight_count": htlc_count}
 
 @plugin.init()
 def init(options: dict, configuration: dict, plugin: Plugin, **kwargs):
