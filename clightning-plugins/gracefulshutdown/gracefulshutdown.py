@@ -12,7 +12,6 @@ def count_inflight_htlcs():
     for peer in peers:
         if len(peer["channels"]) > 0:
             chan = peer["channels"][0]
-            scid = chan["short_channel_id"]
             num_htlcs = len(chan["htlcs"])
             total_num_htlcs += num_htlcs
     return total_num_htlcs
