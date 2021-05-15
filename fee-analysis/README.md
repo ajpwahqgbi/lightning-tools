@@ -18,8 +18,12 @@ Note that fees reported for forwards incoming on each channel are not really ear
 ## get\_period\_flows.py
 Deprecated. Please use get\_period\_pnl.py instead.
 
-# Monitoring one-liner
-I like to run the following bash one-liner in a GNU screen session:
+# One-liners
+I like to run the following bash one-liner in a GNU screen session to monitor the current month's operations:
 
-    BEGIN="May 01 2021"; NOW=$(date '+%s'); echo "-------"; while true; do date; lightning-cli listforwards | ./get_period_fees.py $(date '+%s' -d "$BEGIN") $NOW; (echo "{"; lightning-cli listpays | tail -n +2 | head -n -2; echo "],"; lightning-cli listinvoices | tail -n +2) | ./get_period_rebalance_cost.py $(date '+%s' -d "$BEGIN") $NOW; ./get_period_pnl.py $(date '+%s' -d "$BEGIN") $NOW; sleep 3600; done
+    BEGIN=$(date '+%s' -d "May 01 2021"); while true; do date; NOW=$(date '+%s'); lightning-cli listforwards | ./get_period_fees.py $BEGIN $NOW; (echo "{"; lightning-cli listpays | tail -n +2 | head -n -2; echo "],"; lightning-cli listinvoices | tail -n +2) | ./get_period_rebalance_cost.py $BEGIN $NOW; ./get_period_pnl.py $BEGIN $NOW; sleep 3600; echo "----------"; done
+
+The following one-liner similarly monitors the previous 30 days (2592000 seconds) of history:
+
+    while true; do date; NOW=$(date '+%s'); BEGIN=$(($NOW - 2592000)); lightning-cli listforwards | ./get_period_fees.py $BEGIN $NOW; (echo "{"; lightning-cli listpays | tail -n +2 | head -n -2; echo "],"; lightning-cli listinvoices | tail -n +2) | ./get_period_rebalance_cost.py $BEGIN $NOW; ./get_period_pnl.py $BEGIN $NOW; sleep 3600; echo "----------"; done
 
