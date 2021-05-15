@@ -21,5 +21,5 @@ Deprecated. Please use get\_period\_pnl.py instead.
 # Monitoring one-liner
 I like to run the following bash one-liner in a GNU screen session:
 
-    BEGIN="May 01 2021"; NOW=$(date '+%s'); echo "-------"; while true; do date; lightning-cli listforwards | ./get_period_fees.py $(date '+%s' -d "$BEGIN") $NOW; (echo "{"; lightning-cli listpays | tail -n +2 | head -n -2; echo "],"; lightning-cli listinvoices | tail -n +2) | ./get_period_rebalance_cost.py $(date '+%s' -d "$BEGIN") $NOW; lightning-cli listforwards | ./get_period_pnl.py $(date '+%s' -d "$BEGIN") $NOW; sleep 3600; done
+    BEGIN="May 01 2021"; NOW=$(date '+%s'); echo "-------"; while true; do date; lightning-cli listforwards | ./get_period_fees.py $(date '+%s' -d "$BEGIN") $NOW; (echo "{"; lightning-cli listpays | tail -n +2 | head -n -2; echo "],"; lightning-cli listinvoices | tail -n +2) | ./get_period_rebalance_cost.py $(date '+%s' -d "$BEGIN") $NOW; ./get_period_pnl.py $(date '+%s' -d "$BEGIN") $NOW; sleep 3600; done
 
