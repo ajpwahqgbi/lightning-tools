@@ -10,6 +10,7 @@ plugin = Plugin()
 def inflight_htlcs(plugin: Plugin, **kwargs):
     peers = plugin.rpc.listpeers()["peers"]
     htlc_count = dict()
+    chan_htlcs = dict()
     total_num_htlcs = 0
     for peer in peers:
         if len(peer["channels"]) > 0:
@@ -19,7 +20,8 @@ def inflight_htlcs(plugin: Plugin, **kwargs):
             total_num_htlcs += num_htlcs
             if num_htlcs > 0:
                 htlc_count[scid] = num_htlcs
-    return {"num_inflight": total_num_htlcs, "channel_inflight_count": htlc_count}
+                chan_htlcs[scid] = chan["htlcs"]
+    return {"num_inflight": total_num_htlcs, "channel_inflight_count": htlc_count, "channel_htlcs": chan_htlcs}
 
 @plugin.init()
 def init(options: dict, configuration: dict, plugin: Plugin, **kwargs):
