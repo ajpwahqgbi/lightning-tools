@@ -12,8 +12,9 @@ def count_inflight_htlcs():
     for peer in peers:
         if len(peer["channels"]) > 0:
             chan = peer["channels"][0]
-            num_htlcs = len(chan["htlcs"])
-            total_num_htlcs += num_htlcs
+            if chan["state"] == "CHANNELD_NORMAL":
+                num_htlcs = len(chan["htlcs"])
+                total_num_htlcs += num_htlcs
     return total_num_htlcs
 
 @plugin.hook("htlc_accepted")
