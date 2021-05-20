@@ -37,6 +37,12 @@ epoch_end_str = datetime.utcfromtimestamp(epoch_end).strftime('%Y-%m-%d %H:%M:%S
 if epoch_end <= epoch_begin:
     print_usage_and_die()
 
+for peer in rpc.listpeers()["peers"]:
+    if len(peer["channels"]) > 0:
+        chan = peer["channels"][0]
+        scid = chan["short_channel_id"]
+        channels.add(scid)
+
 for invoice in rpc.listinvoices()["invoices"]:
     if invoice["status"] == "paid":
         pay_time = int(invoice["paid_at"])
@@ -104,12 +110,10 @@ for forward in rpc.listforwards()["forwards"]:
 print("──────────────┬───────────┬──────────────────────┬──────────────────────┬──────────────────────┬──────────┐")
 print("   channel    │ # in, out │      ksat moved      │    fees collected    │  rebalancing costs   │    net   │")
 print("══════════════╪═══════════╪══════════════════════╪══════════════════════╪══════════════════════╪══════════╡")
-for scid in sorted(channels, key = lambda s: msat_moved[s][0][1] + msat_moved[s][1][1]):
-    collected_fees = channel_fees_collected[scid]
-    moved = msat_moved[scid]
-    rebalance_cost = (0, 0)
-    if scid in channel_rebalance_paid:
-        rebalance_cost = channel_rebalance_paid[scid]
+for scid in sorted(channels, key = lambda s: msat_moved[s][0][1] + msat_moved[s][1][1] if s in msat_moved else 0):
+    collected_fees = channel_fees_collected[scid] if scid in channel_fees_collected else (0, 0)
+    moved = msat_moved[scid] if scid in msat_moved else ((0, 0), (0, 0))
+    rebalance_cost = channel_rebalance_paid[scid] if scid in channel_rebalance_paid else (0, 0)
     net_earnings = ((collected_fees[0] + collected_fees[1]) - (rebalance_cost[0] + rebalance_cost[1]))
     print("%s │%4d, %4d │ %9.3f, %9.3f │ %9.3f, %9.3f │ %9.3f, %9.3f │ %8.3f │" % (scid.rjust(13), moved[0][0], moved[1][0], moved[0][1] / 1000000.0, moved[1][1] / 1000000.0, collected_fees[0] / 1000.0, collected_fees[1] / 1000.0, rebalance_cost[0] / 1000.0, rebalance_cost[1] / 1000.0, net_earnings / 1000.0))
 print("──────────────┴───────────┴──────────────────────┴──────────────────────┴──────────────────────┴──────────┘")
