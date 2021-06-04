@@ -169,6 +169,7 @@ def get_lowfee_reachable_subgraph(proposed_new_peer=None, max_hops=None):
                 #we checked for Pareto optimality below, but as min_cost_to_node was under
                 #construction it may have old entries that are no longer on the Pareto frontier
                 pareto_optimal_feerates.add((ppm, base))
+        min_cost_to_node[cur_node] = pareto_optimal_feerates
         for min_feerate in pareto_optimal_feerates:
             (permillion_fee, base_fee) = min_feerate
 
@@ -213,7 +214,7 @@ def get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node):
     for cur_node in lowfee_nodes:
         try:
             min_costs = min_cost_to_node[cur_node]
-            mincost = sorted(min_costs, key = lambda x: x[0])[0]
+            mincost = sorted(min_costs, key = lambda x: x[0])[0] #sort by ppm
             cheapest_route[cur_node] = mincost[0]
         except:
             msg = "Could not find costs for node %s" % (node_to_id[cur_node])
