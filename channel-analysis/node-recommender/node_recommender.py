@@ -445,9 +445,9 @@ for n in [k for k, v in sorted(nodes_num_outgoing.items(), key = lambda x: x[1],
     if i != 0:
         sys.stdout.write(",\n")
     (new_lowfee_edges, new_lowfee_nodes, min_cost_to_node) = get_lowfee_reachable_subgraph(n)
+    now_reachable = get_lowfee_reachable_unweighted_maxflows(new_lowfee_edges, new_lowfee_nodes)
     asp = calculate_asp(new_lowfee_edges, lowfee_nodes)
     (ppm_geomean, warnings) = get_lowfee_reachable_ppm_geomean(lowfee_nodes, min_cost_to_node)
-    now_reachable = get_lowfee_reachable_unweighted_maxflows(new_lowfee_edges, new_lowfee_nodes)
     maxflow_prod = mpf('1.0')
     num_new_nodes = 0
     routability_improvements = 0
