@@ -4,6 +4,7 @@ import json
 from datetime import date, datetime
 from pyln.client import LightningRpc
 from os.path import expanduser
+from mpmath import *
 
 rpc = LightningRpc(expanduser("~") + "/.lightning/bitcoin/lightning-rpc")
 N = 1 # min number of triangles
@@ -19,6 +20,46 @@ def print_usage_and_die():
     sys.stderr.write("triangles where both other nodes are already in the megahub.\n")
     sys.stderr.write("\n")
     sys.exit(1)
+
+#Calculate the average shortest path length from root_node to each node in lowfee_nodes
+def calculate_asp(edges, nodes):
+    min_distance = dict()
+    mega_adjacent = dict()
+    processed = set()
+
+    for (src, dest) in edges:
+        if src not in mega_adjacent:
+            mega_adjacent[src] = set()
+        if dest not in mega_adjacent:
+            mega_adjacent[dest] = set()
+        mega_adjacent[src].add(dest)
+        mega_adjacent[dest].add(src)
+        min_distance[src] = sys.maxsize
+        min_distance[dest] = sys.maxsize
+
+    #Calculate shortest path lengths:
+    bfs_queue = [(root_node, 0)]
+    processed.add(root_node)
+    while len(bfs_queue) > 0:
+        (cur_node, distance) = bfs_queue.pop(0)
+        for a in mega_adjacent[cur_node]:
+            if (distance + 1) < min_distance[a]:
+                min_distance[a] = distance + 1
+            if a not in processed:
+                bfs_queue.append((a, distance + 1))
+                processed.add(a)
+
+    #Calculate average shortest path lengths:
+    #path_length_sum = reduce(lambda x,y: x+y, map(lambda n: min_distance[n], filter(lambda n: True if n in min_distance else False, nodes)))
+    #return float(path_length_sum)/len(nodes)
+    filter_func = lambda n: True if n in min_distance else False
+    path_length_prod = reduce(lambda x,y: x*y, map(lambda n: mpf(min_distance[n]), filter(filter_func, nodes)))
+    path_length_count = reduce(lambda x,y: x+y, map(lambda n: 1, filter(filter_func, nodes)))
+    return power(path_length_prod, mpf(1.0) / mpf(path_length_count))
+
+#####################################################
+#MAIN BODY
+#####################################################
 
 # parse command line args:
 if len(sys.argv) < 3:
@@ -69,3 +110,11 @@ while not finished:
 
 print("%d nodes in the megahub:" % len(megahub_nodes))
 print(megahub_nodes)
+
+mega_edges = set()
+for n in megahub_nodes:
+    for a in filter(lambda x: x in megahub_nodes, adjacent[n]):
+        mega_edges.add((n, a))
+
+asp = calculate_asp(mega_edges, megahub_nodes)
+print("average shortest path in the megahub is %s" % nstr(asp, 6))
