@@ -16,7 +16,7 @@ def print_usage_and_die():
     sys.stderr.write("%s N node_id [node_id ...]" % sys.argv[0])
     sys.stderr.write("\n")
     sys.stderr.write("Extracts the megahub rooted at the specified node_ids with all nodes having at least N\n")
-    sys.stderr.write("triangles with both other parties already in the megahub.\n")
+    sys.stderr.write("triangles where both other nodes are already in the megahub.\n")
     sys.stderr.write("\n")
     sys.exit(1)
 
@@ -29,7 +29,7 @@ for i in range(2, len(sys.argv)):
     node_id = sys.argv[i]
     megahub_nodes.add(node_id)
 
-# build adjacenct dict:
+# build adjacent dict:
 for chan in rpc.listchannels()["channels"]:
     src = chan["source"]
     dst = chan["destination"]
