@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pyln.client import LightningRpc
 from os.path import expanduser
 from mpmath import *
+from functools import reduce
 
 rpc = LightningRpc(expanduser("~") + "/.lightning/bitcoin/lightning-rpc")
 N = 1 # min number of triangles
@@ -22,7 +23,7 @@ def print_usage_and_die():
     sys.exit(1)
 
 #Calculate the average shortest path length from root_node to each node in lowfee_nodes
-def calculate_asp(edges, nodes):
+def calculate_asp(edges, nodes, root_node):
     min_distance = dict()
     mega_adjacent = dict()
     processed = set()
@@ -116,5 +117,12 @@ for n in megahub_nodes:
     for a in filter(lambda x: x in megahub_nodes, adjacent[n]):
         mega_edges.add((n, a))
 
-asp = calculate_asp(mega_edges, megahub_nodes)
+megahub_asp = dict()
+for n in megahub_nodes:
+    asp = calculate_asp(mega_edges, megahub_nodes, n)
+    megahub_asp[n] = asp
+
+asp_prod = reduce(lambda x,y: x*y, [v for k, v in megahub_asp.items()])
+asp = power(asp_prod, mpf(1.0) / mpf(len(megahub_nodes)))
+
 print("average shortest path in the megahub is %s" % nstr(asp, 6))
