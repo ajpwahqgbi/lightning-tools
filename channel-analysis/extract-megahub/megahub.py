@@ -57,8 +57,8 @@ while not finished:
             # connected to dst1, the edges (src, dst1) and (src, dst2) are
             # triangle edges
             if (src, dst1) not in triangle_edges:
-                for dst2 in filter(lambda x: x in megahub_nodes, adjacent[src]):
-#                for dst2 in adjacent[src]: #FIXME do triangles have to have *both* other nodes already in the megahub?
+                for dst2 in filter(lambda x: x in megahub_nodes and x != dst1, adjacent[src]):
+#                for dst2 in filter(lambda x: x != dst1, adjacent[src]): #FIXME do triangles have to have *both* other nodes already in the megahub?
                     if dst1 in adjacent[dst2]:
                         triangle_edges.add((src, dst1))
                         triangle_edges.add((src, dst2))
