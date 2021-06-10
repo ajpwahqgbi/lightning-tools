@@ -11,6 +11,7 @@ channels = set() # a bag of scids
 channel_fees_collected = dict() # scid -> (x, y) where x = fees from this channel as input, y = fees from this channel as output
 msat_moved = dict() # scid -> ((n, x), (n, y)) where x = msat moved in all forwards with this channel as input, y = msat moved " as output and n in both cases is the number of forwarding events
 rebalance_payment_hashes = set()
+rebalance_msat_received = dict() # payment hash -> msat received
 rebalance_channels = dict() # payment hash -> (x, y) where x = outgoing channel, y = incoming channel
 channel_rebalance_paid = dict() #scid -> (x, y) where x = fees paid rebalancing this channel in, y = fees paid rebalancing this channel out
 rebalance_fees = dict() # payment hash -> msat
@@ -50,12 +51,16 @@ for invoice in rpc.listinvoices()["invoices"]:
             payhash = invoice["payment_hash"]
             rebalance_payment_hashes.add(payhash)
             rebalance_channels[payhash] = tuple(invoice["description"].split(' to '))
+            rebalance_msat_received[payhash] = invoice["msatoshi_received"]
 for payment in rpc.listpays()["pays"]:
-    if payment["payment_hash"] in rebalance_payment_hashes and payment["status"] == "complete":
-        amount_sent = int((payment["amount_sent_msat"]))
-        amount = int((payment["amount_msat"]))
-        fees_paid = amount_sent - amount
-        rebalance_fees[payment["payment_hash"]] = fees_paid
+    payhash = payment["payment_hash"]
+    if payhash in rebalance_payment_hashes:
+        amount_sent = int(payment["amount_sent_msat"])
+        amount_rcvd = int(rebalance_msat_received[payhash])
+        fees_paid = amount_sent - amount_rcvd
+        if amount_sent == 0:
+            fees_paid = 0 # handle bugs: if we marked the invoice as paid but the payment failed
+        rebalance_fees[payhash] = fees_paid
 for payhash, (chan_out, chan_in) in rebalance_channels.items():
     fee = rebalance_fees[payhash]
 
