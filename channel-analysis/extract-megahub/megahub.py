@@ -113,9 +113,17 @@ print("%d nodes in the megahub:" % len(megahub_nodes))
 print(megahub_nodes)
 
 mega_edges = set()
+all_edges = set()
+all_nodes = set()
 for n in megahub_nodes:
     for a in filter(lambda x: x in megahub_nodes, adjacent[n]):
         mega_edges.add((n, a))
+for (n, adj) in adjacent.items():
+    for a in adj:
+        if a in adjacent:
+            all_nodes.add(a)
+            all_edges.add((n, a))
+non_megahub_nodes = {n for n in filter(lambda x: x not in megahub_nodes, all_nodes)}
 
 megahub_asp = dict()
 for n in megahub_nodes:
@@ -126,3 +134,32 @@ asp_prod = reduce(lambda x,y: x*y, [v for k, v in megahub_asp.items()])
 asp = power(asp_prod, mpf(1.0) / mpf(len(megahub_nodes)))
 
 print("average shortest path in the megahub is %s" % nstr(asp, 6))
+
+megahub_all_asp = dict()
+for n in megahub_nodes:
+    asp = calculate_asp(all_edges, all_nodes, n)
+    megahub_all_asp[n] = asp
+
+asp_prod = reduce(lambda x,y: x*y, [v for k, v in megahub_all_asp.items()])
+asp = power(asp_prod, mpf(1.0) / mpf(len(megahub_nodes)))
+
+print("average shortest path for megahub nodes in the wider LN is %s" % nstr(asp, 6))
+
+non_megahub_all_asp = dict()
+for n in non_megahub_nodes:
+    asp = calculate_asp(all_edges, all_nodes, n)
+    non_megahub_all_asp[n] = asp
+
+asp_prod = reduce(lambda x,y: x*y, [v for k, v in non_megahub_all_asp.items()])
+asp = power(asp_prod, mpf(1.0) / mpf(len(non_megahub_nodes)))
+
+print("average shortest path for non-megahub nodes in the wider LN is %s" % nstr(asp, 6))
+
+combined_asp = [v for k, v in non_megahub_all_asp.items()]
+for k, v in megahub_all_asp.items():
+    combined_asp.append(v)
+
+asp_prod = reduce(lambda x,y: x*y, combined_asp)
+asp = power(asp_prod, mpf(1.0) / mpf(len(combined_asp)))
+
+print("average shortest path in the wider LN is %s" % nstr(asp, 6))
