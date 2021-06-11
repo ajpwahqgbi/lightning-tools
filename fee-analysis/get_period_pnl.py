@@ -41,8 +41,11 @@ if epoch_end <= epoch_begin:
 for peer in rpc.listpeers()["peers"]:
     if len(peer["channels"]) > 0:
         chan = peer["channels"][0]
-        scid = chan["short_channel_id"]
-        channels.add(scid)
+        try:
+            scid = chan["short_channel_id"]
+            channels.add(scid)
+        except:
+            pass
 
 for invoice in rpc.listinvoices()["invoices"]:
     if invoice["status"] == "paid":
