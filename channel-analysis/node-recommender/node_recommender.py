@@ -24,6 +24,10 @@ permillion_fee_threshold = 0
 min_channels = 10
 min_capacity = 15000000 #NOT about total capacity of a channel path
 
+#Excluded nodes (the node and all its channels will be excluded from the channel graph):
+banned_nodes = {'0217890e3aad8d35bc054f43acc00084b25229ecff0ab68debd82883ad65ee8266', #1ML.com ALPHA
+                '03c2abfa93eacec04721c019644584424aab2ba4dff3ac9bdab4e9c97007491dda'} #tippin.me
+
 nodes = set()
 node_to_id = dict()
 id_to_node = dict()
@@ -296,7 +300,13 @@ num_inactive_channels = 0
 for chan in json_data_root:
     if ln_software_type == LNSoftwareType.LND and (chan["node1_policy"] == None or chan["node2_policy"] == None):
         continue
+
     src_id = chan["source"] if ln_software_type == LNSoftwareType.CLI else chan["node1_pub"]
+    dest_id = chan["destination"] if ln_software_type == LNSoftwareType.CLI else chan["node2_pub"]
+
+    if src_id in banned_nodes or dest_id in banned_nodes:
+        continue
+
     if src_id not in id_to_node:
         node_to_id[i] = src_id
         id_to_node[src_id] = i
@@ -304,7 +314,6 @@ for chan in json_data_root:
         i += 1
     src = id_to_node[src_id]
 
-    dest_id = chan["destination"] if ln_software_type == LNSoftwareType.CLI else chan["node2_pub"]
     if dest_id not in id_to_node:
         node_to_id[i] = dest_id
         id_to_node[dest_id] = i
