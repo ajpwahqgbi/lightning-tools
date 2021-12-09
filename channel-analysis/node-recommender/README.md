@@ -30,7 +30,7 @@ This is the geometric mean of the total PPM feerate accumulated along the cheape
 # How to use it
 * Install dependencies: `pip3 install PyMaxflow mpmath`
 * Compile the script with Cython (optional): `make`
-* Collect the LN channel graph at multiple times throughout the week: . You need to do this periodically because each one is a snapshot of the network, and because of dynamic fees and the shifting network, a good channel peer at one time may not be a good channel peer at other times. You want to peer with nodes that are consistently good choices over time.
+* Collect the LN channel graph at multiple times throughout the week. You need to do this periodically because each one is a snapshot of the network, and because of dynamic fees and the shifting network, a good channel peer at one time may not be a good channel peer at other times. You want to peer with nodes that are consistently good choices over time.
     - C-Lightning: `lightning-cli listchannels >lnchannels.20211207`
     - LND: `lncli describegraph >lnchannes.20211207`
 * Run the script multiple times to analyze the channel graph at various fee rates:
